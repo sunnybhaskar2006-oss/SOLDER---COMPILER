@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solder — C++ Compiler & Mentor</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+
+<!-- Firebase Authentication (Google + GitHub sign-in) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+
+<style>
+:root{
+  --bg:#10151C;
+  --surface:#171F29;
+  --surface-2:#1B232F;
+  --editor-bg:#141B24;
+  --copper:#D98E4A;
+  --copper-dim:#8A5A2E;
+  --teal:#5EC8C0;
+  --text:#EDE6DA;
+  --text-muted:#8792A0;
+  --error:#E0644B;
+  --warn:#E0B34B;
+  --border:#2A3441;
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+body{margin:0;}
+html,body{
+  height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+}
+.app{
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+}
+
+/* ---------- HEADER ---------- */
+header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 22px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.brand{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+}
+.brand .mark{
+  font-family:'JetBrains Mono',monospace;
+  font-weight:700;
+  color:var(--copper);
+  font-size:20px;
+  letter-spacing:-0.5px;
+}
+.brand .name{
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:600;
+  font-size:19px;
+  color:var(--text);
+}
+.brand .tag{
+  font-size:12px;
+  color:var(--text-muted);
+  font-family:'JetBrains Mono',monospace;
+}
+.header-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+button{
+  font-family:'Inter',sans-serif;
+  border:none;
+  cursor:pointer;
+  border-radius:7px;
+  font-weight:600;
+  transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+button:active{transform:scale(0.97);}
+.btn-run{
+  background:var(--copper);
+  color:#1A1204;
+  padding:10px 18px;
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.btn-run:hover{box-shadow:0 0 0 3px rgba(217,142,74,0.22);}
+.btn-run:disabled{opacity:0.5; cursor:not-allowed;}
+.btn-ghost{
+  background:transparent;
+  color:var(--text-muted);
+  border:1px solid var(--border);
+  padding:9px 16px;
+  font-size:13px;
+}
+.btn-ghost:hover{color:var(--text); border-color:var(--teal);}
+.btn-ghost:disabled{opacity:0.4; cursor:not-allowed;}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--text-muted);
+  transition:background .2s;
+}
+.status-dot.busy{background:var(--warn); animation:pulse 1s infinite;}
+.status-dot.ok{background:var(--teal);}
+.status-dot.err{background:var(--error);}
+@keyframes pulse{50%{opacity:0.3;}}
+
+/* ---------- MAIN LAYOUT ---------- */
+.main{
+  flex:1;
+  display:flex;
+  min-height:0;
+}
+.editor-pane{
+  flex:1.4;
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  border-right:1px solid var(--border);
+}
+.editor-topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 16px;
+  background:var(--surface-2);
+  border-bottom:1px solid var(--border);
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  color:var(--text-muted);
+}
+.file-tab{
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.file-tab .dot{width:6px;height:6px;border-radius:50%;background:var(--copper);}
+.CodeMirror{
+  height:100% !important;
+  font-family:'JetBrains Mono',monospace !important;
+  font-size:14.5px !important;
+  background:var(--editor-bg) !important;
+  padding-top:8px;
+}
+.editor-wrap{flex:1; min-height:0;}
+
+.side-pane{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  min-width:340px;
+  max-width:480px;
+}
+.panel{
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  border-bottom:1px solid var(--border);
+}
+.panel-head{
+  padding:10px 16px;
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:600;
+  font-size:13px;
+  letter-spacing:0.3px;
+  text-transform:uppercase;
+  color:var(--text-muted);
+  background:var(--surface-2);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-shrink:0;
+}
+.panel-head .lbl-out{color:var(--teal);}
+.panel-head .lbl-mentor{color:var(--copper);}
+
+#output-panel{flex:0 0 34%;}
+#output{
+  flex:1;
+  overflow-y:auto;
+  padding:14px 16px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;
+  line-height:1.6;
+  white-space:pre-wrap;
+  word-break:break-word;
+  background:var(--editor-bg);
+}
+#output .placeholder{color:var(--text-muted); font-style:italic;}
+#output .err-line{color:var(--error);}
+#output .ok-line{color:var(--teal);}
+
+#mentor-panel{flex:1;}
+#mentor-body{
+  flex:1;
+  overflow-y:auto;
+  padding:14px 16px;
+  background:var(--surface);
+}
+.mentor-empty{
+  color:var(--text-muted);
+  font-size:13px;
+  line-height:1.6;
+}
+.mentor-empty .hint{
+  display:block;
+  margin-top:10px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  color:var(--copper-dim);
+}
+.issue-card{
+  border:1px solid var(--border);
+  border-left:3px solid var(--text-muted);
+  border-radius:8px;
+  padding:10px 12px;
+  margin-bottom:10px;
+  background:var(--surface-2);
+  cursor:pointer;
+  transition:border-color .15s;
+}
+.issue-card:hover{border-color:var(--teal);}
+.issue-card.severity-error{border-left-color:var(--error);}
+.issue-card.severity-warning{border-left-color:var(--warn);}
+.issue-card.severity-tip{border-left-color:var(--teal);}
+.issue-top{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:5px;
+}
+.issue-badge{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  font-weight:700;
+  padding:2px 7px;
+  border-radius:4px;
+  text-transform:uppercase;
+  letter-spacing:0.4px;
+}
+.severity-error .issue-badge{background:rgba(224,100,75,0.15); color:var(--error);}
+.severity-warning .issue-badge{background:rgba(224,179,75,0.15); color:var(--warn);}
+.severity-tip .issue-badge{background:rgba(94,200,192,0.15); color:var(--teal);}
+.issue-line{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  color:var(--text-muted);
+}
+.issue-title{
+  font-weight:600;
+  font-size:13.5px;
+  margin-bottom:4px;
+  color:var(--text);
+}
+.issue-msg{
+  font-size:12.5px;
+  color:var(--text-muted);
+  line-height:1.5;
+  margin-bottom:6px;
+}
+.issue-fix{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  background:var(--editor-bg);
+  border-radius:6px;
+  padding:8px 10px;
+  color:var(--teal);
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.CodeMirror .flash-line{
+  background:rgba(217,142,74,0.18) !important;
+}
+
+.loader{
+  display:inline-flex;
+  gap:4px;
+  align-items:center;
+}
+.loader span{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--copper);
+  animation:bounce 1s infinite ease-in-out;
+}
+.loader span:nth-child(2){animation-delay:.15s;}
+.loader span:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);opacity:0.4;}40%{transform:translateY(-4px);opacity:1;}}
+
+/* ---------- STATUS BAR ---------- */
+.statusbar{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  padding:6px 18px;
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  font-family:'JetBrains Mono',monospace;
+  font-size:11.5px;
+  color:var(--text-muted);
+  flex-shrink:0;
+}
+.statusbar .sep{color:var(--border);}
+
+::-webkit-scrollbar{width:8px; height:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:var(--copper-dim);}
+
+/* ---------- AUTH GATE ---------- */
+#authGate{
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(217,142,74,0.10), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(94,200,192,0.08), transparent 45%),
+    var(--bg);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:100;
+  padding:20px;
+}
+.auth-card{
+  width:100%;
+  max-width:380px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:34px 30px;
+  text-align:center;
+}
+.auth-mark{
+  font-family:'JetBrains Mono',monospace;
+  font-weight:700;
+  color:var(--copper);
+  font-size:26px;
+  margin-bottom:4px;
+}
+.auth-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:600;
+  font-size:20px;
+  color:var(--text);
+  margin:6px 0 6px;
+}
+.auth-sub{
+  font-size:13px;
+  color:var(--text-muted);
+  margin-bottom:26px;
+  line-height:1.5;
+}
+.auth-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:11px 14px;
+  border-radius:8px;
+  font-size:14px;
+  font-weight:600;
+  margin-bottom:10px;
+  border:1px solid var(--border);
+  cursor:pointer;
+}
+.auth-btn.google{
+  background:#F3EFE7;
+  color:#1A1204;
+}
+.auth-btn.google:hover{box-shadow:0 0 0 3px rgba(217,142,74,0.22);}
+.auth-btn.github{
+  background:#1B232F;
+  color:var(--text);
+  border-color:var(--border);
+}
+.auth-btn.github:hover{box-shadow:0 0 0 3px rgba(94,200,192,0.18);}
+.auth-note{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  color:var(--copper-dim);
+  margin-top:16px;
+  line-height:1.5;
+}
+.auth-error{
+  color:var(--error);
+  font-size:12.5px;
+  margin-top:14px;
+  display:none;
+}
+
+/* ---------- USER BADGE ---------- */
+.user-badge{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:5px 10px 5px 5px;
+  border:1px solid var(--border);
+  border-radius:30px;
+  margin-right:2px;
+}
+.user-badge img{
+  width:24px; height:24px;
+  border-radius:50%;
+}
+.user-badge .u-name{
+  font-size:12.5px;
+  color:var(--text);
+  max-width:120px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.user-badge .u-logout{
+  background:none;
+  border:none;
+  color:var(--text-muted);
+  cursor:pointer;
+  font-size:11px;
+  font-family:'JetBrains Mono',monospace;
+  padding:2px 6px;
+}
+.user-badge .u-logout:hover{color:var(--error);}
+
+@media (max-width:860px){
+  .main{flex-direction:column;}
+  .editor-pane{border-right:none; border-bottom:1px solid var(--border); flex:1.2;}
+  .side-pane{max-width:none; min-width:0;}
+}
+</style>
+</head>
+<div id="authGate">
+  <div class="auth-card">
+    <div class="auth-mark">&lt;/&gt;</div>
+    <div class="auth-title">Sign in to Solder</div>
+    <div class="auth-sub">Sign in to save your work and use the C++ compiler &amp; mentor.</div>
+
+    <button class="auth-btn google" id="googleSignIn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.16.28-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+      Continue with Google
+    </button>
+
+    <button class="auth-btn github" id="githubSignIn">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      Continue with GitHub
+    </button>
+
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-note">Runs on Firebase Authentication — no data leaves your own project.</div>
+  </div>
+</div>
+
+<div class="app" id="appRoot" style="display:none;">
+
+  <header>
+    <div class="brand">
+      <span class="mark">&lt;/&gt;</span>
+      <span class="name">Solder</span>
+      <span class="tag">// c++ compiler &amp; mentor</span>
+    </div>
+    <div class="header-actions">
+      <div class="user-badge" id="userBadge">
+        <img id="userPhoto" src="" alt="">
+        <span class="u-name" id="userName"></span>
+        <button class="u-logout" id="logoutBtn">LOG OUT</button>
+      </div>
+      <button class="btn-ghost" id="reviewBtn" title="Ask the mentor to review logic, even if code compiles">Review code</button>
+      <button class="btn-run" id="runBtn">▶ Run <span id="runLoader" style="display:none" class="loader"><span></span><span></span><span></span></span></button>
+      <div class="status-dot" id="statusDot" title="idle"></div>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="editor-pane">
+      <div class="editor-topbar">
+        <div class="file-tab"><span class="dot"></span> main.cpp</div>
+        <span id="cursorPos">Ln 1, Col 1</span>
+      </div>
+      <div class="editor-wrap"><textarea id="code"></textarea></div>
+    </div>
+
+    <div class="side-pane">
+      <div class="panel" id="output-panel">
+        <div class="panel-head"><span class="lbl-out">Output</span><span id="execTime"></span></div>
+        <div id="output"><span class="placeholder">Run the code to see output here.</span></div>
+      </div>
+      <div class="panel" id="mentor-panel">
+        <div class="panel-head"><span class="lbl-mentor">Mentor</span></div>
+        <div id="mentor-body">
+          <div class="mentor-empty">
+            The mentor explains typing mistakes (syntax errors) and logic mistakes in plain language, with a suggested fix.
+            <span class="hint">Run your code, or hit "Review code" any time.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span>C++17 · GCC</span>
+    <span class="sep">|</span>
+    <span id="lineCount">0 lines</span>
+    <span class="sep">|</span>
+    <span id="statusText">ready</span>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================
+   FIREBASE CONFIG — replace with YOUR project's values.
+   Get these from: Firebase Console -> Project Settings -> General
+   ========================================================= */
+// Import the functions you need from the SDKs you need
+
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAPm2TTKrFfCFRkQTugvi5osFAa-KDP0Rk",
+  authDomain: "solder-compiler.firebaseapp.com",
+  projectId: "solder-compiler",
+  storageBucket: "solder-compiler.firebasestorage.app",
+  messagingSenderId: "607202305986",
+  appId: "1:607202305986:web:9974382e5e8d1393a4585b",
+  measurementId: "G-CYZHK4961Z"
+};
+
+// Initialize Firebase
+
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+const githubProvider = new firebase.auth.GithubAuthProvider();
+
+const authGate = document.getElementById('authGate');
+const appRoot = document.getElementById('appRoot');
+const authError = document.getElementById('authError');
+const userPhoto = document.getElementById('userPhoto');
+const userName = document.getElementById('userName');
+
+function showAuthError(msg){
+  authError.textContent = msg;
+  authError.style.display = 'block';
+}
+
+document.getElementById('googleSignIn').addEventListener('click', function(){
+  authError.style.display = 'none';
+  auth.signInWithPopup(googleProvider).catch(function(e){ showAuthError(e.message); });
+});
+
+document.getElementById('githubSignIn').addEventListener('click', function(){
+  authError.style.display = 'none';
+  auth.signInWithPopup(githubProvider).catch(function(e){ showAuthError(e.message); });
+});
+
+document.getElementById('logoutBtn').addEventListener('click', function(){ auth.signOut(); });
+
+auth.onAuthStateChanged(function(user){
+  if (user) {
+    authGate.style.display = 'none';
+    appRoot.style.display = 'flex';
+    userName.textContent = user.displayName || user.email || 'Signed in';
+    userPhoto.src = user.photoURL || ('https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(user.displayName || 'U'));
+    if (window.editor) setTimeout(function(){ window.editor.refresh(); }, 50);
+  } else {
+    authGate.style.display = 'flex';
+    appRoot.style.display = 'none';
+  }
+});
+
+const DEFAULT_CODE = `#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 5;
+    int b = 10;
+    int sum = a + b;
+    cout << "Sum is: " << sum << endl;
+    return 0;
+}
+`;
+
+const editor = CodeMirror.fromTextArea(document.getElementById('code'), {
+  mode: 'text/x-c++src',
+  theme: 'dracula',
+  lineNumbers: true,
+  matchBrackets: true,
+  styleActiveLine: true,
+  indentUnit: 4,
+  tabSize: 4,
+  indentWithTabs: false,
+  extraKeys: {"Tab": cm => cm.replaceSelection("    ")}
+});
+editor.setValue(DEFAULT_CODE);
+window.editor = editor;
+
+function updateCursor(){
+  const c = editor.getCursor();
+  document.getElementById('cursorPos').textContent = `Ln ${c.line+1}, Col ${c.ch+1}`;
+  document.getElementById('lineCount').textContent = `${editor.lineCount()} lines`;
+}
+editor.on('cursorActivity', updateCursor);
+editor.on('change', updateCursor);
+updateCursor();
+
+const runBtn = document.getElementById('runBtn');
+const reviewBtn = document.getElementById('reviewBtn');
+const runLoader = document.getElementById('runLoader');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const outputEl = document.getElementById('output');
+const mentorBody = document.getElementById('mentor-body');
+const execTimeEl = document.getElementById('execTime');
+
+function setStatus(state, text){
+  statusDot.className = 'status-dot ' + (state||'');
+  statusText.textContent = text || 'ready';
+}
+
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+let lastCompileError = "";
+
+async function runCode(){
+  const code = editor.getValue();
+  runBtn.disabled = true;
+  reviewBtn.disabled = true;
+  runLoader.style.display = 'inline-flex';
+  setStatus('busy', 'compiling…');
+  outputEl.innerHTML = '<span class="placeholder">Compiling and running…</span>';
+  execTimeEl.textContent = '';
+  const started = performance.now();
+
+  try{
+    const res = await fetch('https://wandbox.org/api/compile.json', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        compiler: 'gcc-head',
+        code: code,
+        options: 'warning,gnu++17',
+        stdin: '',
+        save: false
+      })
+    });
+
+    if(!res.ok){
+      throw new Error('Compiler service returned status ' + res.status);
+    }
+
+    const data = await res.json();
+    const took = ((performance.now()-started)/1000).toFixed(2);
+    execTimeEl.textContent = took + 's';
+
+    const succeeded = data.status === '0' || data.status === 0;
+    const compileErr = (data.compiler_error || '').trim();
+    const runOut = (data.program_output || '').trim();
+    const runErr = (data.program_error || '').trim();
+
+    lastCompileError = (compileErr || runErr || '').trim();
+
+    let html = '';
+    if(!succeeded){
+      const errText = compileErr || runErr || 'The program exited with an error.';
+      html += `<div class="err-line">${escapeHtml(errText)}</div>`;
+      setStatus('err', compileErr ? 'compile error' : 'runtime error');
+    } else {
+      if(compileErr){
+        html += `<div style="color:var(--warn); margin-bottom:8px;">${escapeHtml(compileErr)}</div>`;
+      }
+      if(runOut) html += `<div class="ok-line">${escapeHtml(runOut)}</div>`;
+      if(runErr) html += `<div class="err-line">${escapeHtml(runErr)}</div>`;
+      if(!runOut && !runErr) html += '<span class="placeholder">Program ran with no output.</span>';
+      setStatus(runErr ? 'err' : 'ok', runErr ? 'runtime error' : 'done');
+    }
+    outputEl.innerHTML = html;
+
+    // auto-trigger mentor if there's any error
+    if(!succeeded){
+      reviewWithMentor(lastCompileError, true);
+    }
+  }catch(e){
+    outputEl.innerHTML = `<span class="err-line">Could not reach the compiler service. Check your internet connection and try again.</span>`;
+    setStatus('err', 'network error');
+  }finally{
+    runBtn.disabled = false;
+    reviewBtn.disabled = false;
+    runLoader.style.display = 'none';
+  }
+}
+
+function flashLine(lineNum){
+  if(!lineNum || lineNum < 1) return;
+  const idx = lineNum - 1;
+  editor.scrollIntoView({line: idx, ch:0}, 100);
+  const handle = editor.addLineClass(idx, 'background', 'flash-line');
+  setTimeout(()=> editor.removeLineClass(idx, 'background', 'flash-line'), 1600);
+}
+
+function renderIssues(issues){
+  if(!issues || issues.length === 0){
+    mentorBody.innerHTML = `<div class="mentor-empty">No issues found — the mentor didn't spot typing or logic problems in this code. Nice work.</div>`;
+    return;
+  }
+  const order = {error:0, warning:1, tip:2};
+  issues.sort((a,b)=> (order[a.severity]??3) - (order[b.severity]??3));
+  mentorBody.innerHTML = issues.map(iss => `
+    <div class="issue-card severity-${iss.severity || 'tip'}" data-line="${iss.line || ''}">
+      <div class="issue-top">
+        <span class="issue-badge">${iss.severity || 'tip'}</span>
+        ${iss.line ? `<span class="issue-line">line ${iss.line}</span>` : ''}
+      </div>
+      <div class="issue-title">${escapeHtml(iss.title || '')}</div>
+      <div class="issue-msg">${escapeHtml(iss.message || '')}</div>
+      ${iss.fix ? `<div class="issue-fix">${escapeHtml(iss.fix)}</div>` : ''}
+    </div>
+  `).join('');
+
+  mentorBody.querySelectorAll('.issue-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const ln = parseInt(card.getAttribute('data-line'));
+      if(ln) flashLine(ln);
+    });
+  });
+}
+
+async function reviewWithMentor(compileErrorText, isAuto){
+  reviewBtn.disabled = true;
+  runBtn.disabled = true;
+  mentorBody.innerHTML = `<div class="mentor-empty"><span class="loader"><span></span><span></span><span></span></span> &nbsp;Mentor is reading your code…</div>`;
+
+  const code = editor.getValue();
+  const errBlock = compileErrorText ? `\n\nThe compiler produced this error/output:\n${compileErrorText}` : '';
+
+  const prompt = `You are a patient C++ mentor helping a beginner. Review the following C++ code for TYPING mistakes (syntax errors, typos, missing semicolons/brackets, wrong keywords) AND LOGIC mistakes (wrong algorithm, off-by-one errors, wrong operators, uninitialized variables, incorrect conditions, etc.), even if the code compiles fine.
+
+Code:
+\`\`\`cpp
+${code}
+\`\`\`${errBlock}
+
+Respond with ONLY a raw JSON array (no markdown fences, no extra text) of issue objects, each with this shape:
+{"line": <line number or null if general>, "severity": "error" | "warning" | "tip", "title": "short 3-6 word title", "message": "plain-language explanation a beginner can understand, 1-2 sentences", "fix": "the corrected line(s) of code, or a short concrete suggestion"}
+
+If there are no issues, return an empty array []. Keep the array to at most 6 of the most important issues. Return ONLY the JSON array, nothing else.`;
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{role:"user", content: prompt}]
+      })
+    });
+    const data = await response.json();
+    let text = (data.content || []).map(b=>b.text||'').join('').trim();
+    text = text.replace(/^```json\s*|^```\s*|```$/gm, '').trim();
+    let issues = [];
+    try{ issues = JSON.parse(text); }catch(e){ issues = []; }
+    renderIssues(issues);
+  }catch(e){
+    mentorBody.innerHTML = `<div class="mentor-empty">Mentor couldn't be reached right now. Check your connection and try "Review code" again.</div>`;
+  }finally{
+    reviewBtn.disabled = false;
+    runBtn.disabled = false;
+  }
+}
+
+runBtn.addEventListener('click', runCode);
+reviewBtn.addEventListener('click', ()=> reviewWithMentor(lastCompileError, false));
+</script>
+
+</body>
+</html>
